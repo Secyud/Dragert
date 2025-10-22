@@ -1,6 +1,7 @@
 ﻿import {dirname} from "path";
 import {join} from "node:path";
 import {fileURLToPath} from "url";
+import {buildSvgFont} from "../src/build-svg-font.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -9,11 +10,11 @@ console.log("Current dir: " + __dirname);
 
 /**/
 
-//
+
 // const svgDir = join(__dirname, 'publish/secits-icons.svg');
 // const jsonDir = join(__dirname, 'src/font.json');
 // await buildSvgFont(jsonDir, svgDir);
-//
+
 // const ttfDir = join(__dirname, 'publish/secits-icons.ttf');
 // await buildTtfFont(svgDir, ttfDir);
 //
