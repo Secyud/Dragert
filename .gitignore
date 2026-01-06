@@ -2,6 +2,9 @@
 
 .idea
 
+*.lock
+*.lock.json
+
 # dependencies
 /node_modules
 /.pnp
