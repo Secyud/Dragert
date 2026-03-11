@@ -1,8 +1,10 @@
-﻿import {SVGIcons2SVGFontStream} from "svgicons2svgfont";
-import * as svg2ttf from "svg2ttf";
+﻿// @ts-ignore
+import {SVGIcons2SVGFontStream} from "svgicons2svgfont";
+import svg2ttf from "svg2ttf";
 import ttf2woff2 from "ttf2woff2";
 import {join} from "node:path";
 import {fs} from "../../utils/src/file-stream";
+import {readFile, writeFile} from 'node:fs/promises';
 
 interface ISvgIconData {
     name: string;
@@ -10,18 +12,16 @@ interface ISvgIconData {
     path: string;
 }
 
-
 export class FontBuilder {
-    data: ISvgIconData[];
+    data: ISvgIconData[] = [];
 
     addSvg(svgData: ISvgIconData) {
         this.data.push(svgData);
     }
 
-
     async buildWoff2Font(inputTtfPath: string, outputWoff2Path: string) {
-        const buffer = await fs.readFile(inputTtfPath, {encoding: "utf-8"});
-        const woff2 = ttf2woff2(buffer);
+        const buffer = await fs.readFile(inputTtfPath);
+        const woff2 = ttf2woff2(buffer as NonSharedBuffer);
         await fs.writeFile(outputWoff2Path, woff2, {encoding: "utf-8"});
         console.log(`Woff2 icon successfully created!(${outputWoff2Path})`);
     }
@@ -32,31 +32,46 @@ export class FontBuilder {
         await fs.writeFile(outputTtfPath, Buffer.from(ttf.buffer), {encoding: "utf-8"});
     }
 
-    async buildSvgFont(outputPath: string, fontName: string) {
-        const fontStream = new SVGIcons2SVGFontStream({fontName: fontName});
-        const outputSvgFontPath = join(outputPath, fontName + ".svg");
-        const ws = fs.createWriteStream(outputSvgFontPath);
+    buildSvg(outputPath: string, fontName: string) {
+        return new Promise<void>((resolve, reject) => {
 
-        fontStream.pipe(ws);
+            const fontStream = new SVGIcons2SVGFontStream({fontName: fontName});
+            const ws = fs.createWriteStream(outputPath);
 
-        let css = ".si{";
+            fontStream.pipe(ws)
+                .on('finish', function () {
+                    console.log(`SvgFont successfully created!(${outputPath})`);
+                    resolve();
+                })
+                .on('error', function (err) {
+                    console.log(err);
+                    reject();
+                });
+
+            for (const icon of this.data) {
+                let glyph = fs.createReadStream(icon.path);
+                glyph["metadata"] = {
+                    unicode: [icon.unicode],
+                    name: icon.name,
+                }
+                fontStream.write(glyph);
+            }
+
+            fontStream.end();
+        })
+    }
+
+    async buildSvgFontCss(outputPath: string, fontClass: string) {
+
+        let css = `.${fontClass}{`;
 
         for (const icon of this.data) {
-            let glyph = fs.createReadStream(icon.path);
-            glyph["metadata"] = {
-                unicode: [icon.unicode],
-                name: icon.name,
-            }
-            css += `&.b.${icon}::before {content: '${icon.unicode}';}`;
-            css += `&.a.${icon}::after {content: '${icon.unicode}';}`;
-            fontStream.write(glyph);
+            css += `&.${icon.name}::after {content: '${icon.unicode}';}`;
         }
-
-        fontStream.end();
 
         css += '}';
 
-        const cssFileOutputPath = join(outputPath, fontName + ".css");
+        const cssFileOutputPath = join(outputPath);
 
         await fs.writeFile(cssFileOutputPath, css, {encoding: "utf-8"});
 
