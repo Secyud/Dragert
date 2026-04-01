@@ -3,8 +3,7 @@ import {SVGIcons2SVGFontStream} from "svgicons2svgfont";
 import svg2ttf from "svg2ttf";
 import ttf2woff2 from "ttf2woff2";
 import {join} from "node:path";
-import {fs} from "../../utils/src/file-stream";
-import {readFile, writeFile} from 'node:fs/promises';
+import {FileHelper} from "../../utils/src/file-helper";
 
 interface ISvgIconData {
     name: string;
@@ -20,23 +19,23 @@ export class FontBuilder {
     }
 
     async buildWoff2Font(inputTtfPath: string, outputWoff2Path: string) {
-        const buffer = await fs.readFile(inputTtfPath);
+        const buffer = await FileHelper.readFile(inputTtfPath);
         const woff2 = ttf2woff2(buffer as NonSharedBuffer);
-        await fs.writeFile(outputWoff2Path, woff2, {encoding: "utf-8"});
+        await FileHelper.writeFile(outputWoff2Path, woff2, {encoding: "utf-8"});
         console.log(`Woff2 icon successfully created!(${outputWoff2Path})`);
     }
 
     async buildTtfFont(inputSvgPath: string, outputTtfPath: string) {
-        const buffer = await fs.readFile(inputSvgPath, {encoding: 'utf-8'});
+        const buffer = await FileHelper.readFile(inputSvgPath, {encoding: 'utf-8'});
         const ttf = svg2ttf(typeof buffer === "string" ? buffer : buffer.toString());
-        await fs.writeFile(outputTtfPath, Buffer.from(ttf.buffer), {encoding: "utf-8"});
+        await FileHelper.writeFile(outputTtfPath, Buffer.from(ttf.buffer), {encoding: "utf-8"});
     }
 
     buildSvg(outputPath: string, fontName: string) {
         return new Promise<void>((resolve, reject) => {
 
             const fontStream = new SVGIcons2SVGFontStream({fontName: fontName});
-            const ws = fs.createWriteStream(outputPath);
+            const ws = FileHelper.createWriteStream(outputPath);
 
             fontStream.pipe(ws)
                 .on('finish', function () {
@@ -49,7 +48,7 @@ export class FontBuilder {
                 });
 
             for (const icon of this.data) {
-                let glyph = fs.createReadStream(icon.path);
+                let glyph = FileHelper.createReadStream(icon.path);
                 glyph["metadata"] = {
                     unicode: [icon.unicode],
                     name: icon.name,
@@ -63,7 +62,7 @@ export class FontBuilder {
 
     async buildSvgFontCss(outputPath: string, fontClass: string) {
 
-        let css = `.${fontClass}{`;
+        let css = `${fontClass}{`;
 
         for (const icon of this.data) {
             css += `&.${icon.name}::after {content: '${icon.unicode}';}`;
@@ -73,7 +72,7 @@ export class FontBuilder {
 
         const cssFileOutputPath = join(outputPath);
 
-        await fs.writeFile(cssFileOutputPath, css, {encoding: "utf-8"});
+        await FileHelper.writeFile(cssFileOutputPath, css, {encoding: "utf-8"});
 
         console.log(`Svg Font css create successfully!(${cssFileOutputPath})`);
     }
